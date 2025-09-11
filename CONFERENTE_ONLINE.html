@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conferência Oficial — Nota x Súmula (CSV/Excel)</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --coke-red:#E41C23;
+  --coke-dark:#1A1A1A;
+  --white:#ffffff;
+  --radius:12px;
+  font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--coke-dark);-webkit-font-smoothing:antialiased;}
+.header{background:var(--coke-red);color:var(--white);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
+.brand{font-weight:700;font-size:18px}
+.container{max-width:1100px;margin:24px auto;padding:16px}
+.card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:18px}
+.label{font-size:13px;color:#333;margin-bottom:6px;display:block}
+input[type=file]{display:block}
+.btn{background:var(--coke-red);color:var(--white);border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 18px rgba(228,28,35,0.14)}
+.btn.secondary{background:transparent;color:var(--coke-dark);border:1px solid #eee}
+.btn.small{padding:8px 10px;font-size:14px}
+.progress{font-size:13px;color:#333;margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:14px}
+.card-item{background:#fff;border-radius:10px;padding:12px;border:1px solid #f0f0f0;box-shadow:0 6px 14px rgba(0,0,0,0.04);}
+.card-item h3{margin:4px 0;font-size:15px}
+.card-item p{margin:6px 0;font-size:13px}
+.status-ok{color:green;font-weight:700}
+.status-error{color:red;font-weight:700}
+.editable{border-bottom:1px dashed #ddd;padding:2px 4px;border-radius:4px}
+.note{font-size:13px;color:#666;margin-top:10px}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="brand">Conferência Oficial — Nota x Súmula</div>
+  <div style="font-size:13px;color:#fff;opacity:0.9">Protótipo CSV/Excel • salvar como index.html</div>
+</header>
+
+<main class="container">
+<section class="card">
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <label class="label">Arquivo da Nota Fiscal (CSV/XLSX)</label>
+      <input id="notaUpload" type="file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div style="flex:1;min-width:220px">
+      <label class="label">Arquivo da Súmula (CSV/XLSX)</label>
+      <input id="sumulaUpload" type="file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;justify-content:center">
+      <button id="conferirBtn" class="btn">Conferir</button>
+      <button id="recalcularBtn" class="btn small secondary">Recalcular</button>
+      <button id="exportBtn" class="btn small secondary">Exportar CSV</button>
+      <button id="limparBtn" class="btn small secondary">Limpar Tudo</button>
+    </div>
+  </div>
+  <div class="progress" id="progress"></div>
+  <div class="note">O arquivo deve conter: <code>Produto,Quantidade</code></div>
+</section>
+
+<section class="card">
+  <h3>Resultados — Todos os produtos (unidos)</h3>
+  <div id="grid" class="grid"></div>
+</section>
+</main>
+
+<script>
+const notaUpload = document.getElementById('notaUpload');
+const sumulaUpload = document.getElementById('sumulaUpload');
+const conferirBtn = document.getElementById('conferirBtn');
+const recalcularBtn = document.getElementById('recalcularBtn');
+const exportBtn = document.getElementById('exportBtn');
+const limparBtn = document.getElementById('limparBtn');
+const grid = document.getElementById('grid');
+const progress = document.getElementById('progress');
+
+let produtosUnidos = [];
+
+function setProgress(msg){ progress.innerText = msg || ''; }
+
+function parseFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const data = e.target.result;
+      let linhas = [];
+      if(file.name.endsWith('.csv')){
+        linhas = data.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
+      }else{
+        const workbook = XLSX.read(data,{type:'binary'});
+        const sheetName = workbook.SheetNames[0];
+        const sheet = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+        linhas = sheet.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
+      }
+      const produtos = [];
+      linhas.forEach(line=>{
+        const match = line.match(/^(.+?)[,\;\t]\s*([0-9]+)$/);
+        if(match) produtos.push({nome:match[1].trim(), qtd:parseInt(match[2],10)});
+      });
+      resolve(produtos);
+    };
+    if(file.name.endsWith('.csv')) reader.readAsText(file);
+    else reader.readAsBinaryString(file);
+  });
+}
+
+function normalizeNome(nome){ return nome.trim().toLowerCase(); }
+
+function unirProdutos(prodNF, prodSumula){
+  const mapa = new Map();
+  function add(item,tipo){
+    const key = normalizeNome(item.nome);
+    if(!mapa.has(key)) mapa.set(key,{nomeDisplay:item.nome, nf:0, sumula:0});
+    const obj = mapa.get(key);
+    if(tipo==='nf') obj.nf=item.qtd;
+    else obj.sumula=item.qtd;
+  }
+  prodNF.forEach(p=>add(p,'nf'));
+  prodSumula.forEach(s=>add(s,'sumula'));
+  const arr=[]; let id=1;
+  for(const [k,v] of mapa) arr.push({id:id++, nome:v.nomeDisplay, nf:v.nf, sumula:v.sumula});
+  return arr;
+}
+
+function calcStatus(nf,sumula){
+  const divergencia = Math.abs(nf-sumula);
+  return {statusOk:nf===sumula, divergencia, texto:`NF ${nf} / Súmula ${sumula} → ${divergencia} divergência${divergencia!==1?'s':''}`};
+}
+
+function renderGrid(produtos){
+  grid.innerHTML='';
+  produtos.forEach(p=>{
+    const info = calcStatus(p.nf,p.sumula);
+    const div = document.createElement('div');
+    div.className='card-item';
+    div.innerHTML=`
+      <h3 contenteditable="true" class="editable nome" data-id="${p.id}">${p.nome}</h3>
+      <p><strong>ID:</strong> ${p.id}</p>
+      <p><strong>N.F.:</strong> <span contenteditable="true" class="editable nf" data-id="${p.id}">${p.nf}</span></p>
+      <p><strong>Súmula:</strong> <span contenteditable="true" class="editable sumula" data-id="${p.id}">${p.sumula}</span></p>
+      <p><strong>Status:</strong> <span class="${info.statusOk?'status-ok':'status-error'} status" data-id="${p.id}">${info.statusOk?'OK':'Não Conforme'}</span></p>
+      <p><strong>Divergências:</strong> <span class="divtxt" data-id="${p.id}">${info.texto}</span></p>
+    `;
+    grid.appendChild(div);
+  });
+  attachEditHandlers();
+}
+
+function attachEditHandlers(){
+  grid.querySelectorAll('.editable.nf').forEach(el=>{
+    el.addEventListener('blur', e=>{
+      const id = Number(e.target.dataset.id);
+      const produto = produtosUnidos.find(x=>x.id===id);
+      if(produto){ produto.nf = parseInt(e.target.innerText)||0; const info=calcStatus(produto.nf,produto.sumula); updateGridRow(id,info); }
+    });
+  });
+  grid.querySelectorAll('.editable.sumula').forEach(el=>{
+    el.addEventListener('blur', e=>{
+      const id = Number(e.target.dataset.id);
+      const produto = produtosUnidos.find(x=>x.id===id);
+      if(produto){ produto.sumula = parseInt(e.target.innerText)||0; const info=calcStatus(produto.nf,produto.sumula); updateGridRow(id,info); }
+    });
+  });
+}
+
+function updateGridRow(id,info){
+  const statusEl = grid.querySelector(`.status[data-id="${id}"]`);
+  const divtxt = grid.querySelector(`.divtxt[data-id="${id}"]`);
+  if(statusEl){ statusEl.className=info.statusOk?'status-ok status':'status-error status'; statusEl.innerText=info.statusOk?'OK':'Não Conforme'; }
+  if(divtxt) divtxt.innerText = info.texto;
+}
+
+conferirBtn.addEventListener('click', async ()=>{
+  if(!notaUpload.files[0]||!sumulaUpload.files[0]){ alert('Envie ambos arquivos.'); return; }
+  setProgress('Processando arquivos...');
+  const prodNF = await parseFile(notaUpload.files[0]);
+  const prodSumula = await parseFile(sumulaUpload.files[0]);
+  produtosUnidos = unirProdutos(prodNF,prodSumula);
+  produtosUnidos.forEach((p,i)=>p.id=i+1);
+  renderGrid(produtosUnidos);
+  setProgress('Conferência concluída.');
+});
+
+recalcularBtn.addEventListener('click', ()=>{ produtosUnidos.forEach(p=>updateGridRow(p.id,calcStatus(p.nf,p.sumula))); setProgress('Recalculo efetuado.'); });
+
+exportBtn.addEventListener('click', ()=>{
+  if(!produtosUnidos.length){ alert('Nada para exportar.'); return; }
+  const header = ['ID','Produto','NF','Súmula','Divergências','Status'];
+  const rows = produtosUnidos.map(p=>{ const info=calcStatus(p.nf,p.sumula); return [p.id,p.nome,p.nf,p.sumula,info.divergencia,info.statusOk?'OK':'Não Conforme']; });
+  const csv=[header.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='conferencia_resultado.csv'; a.click(); a.remove(); URL.revokeObjectURL(url);
+  setProgress('CSV gerado.');
+});
+
+limparBtn.addEventListener('click', ()=>{
+  notaUpload.value='';
+  sumulaUpload.value='';
+  produtosUnidos=[];
+  grid.innerHTML='';
+  setProgress('');
+});
+</script>
+</body>
+</html>
