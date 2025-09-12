@@ -1,214 +1,296 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Conferência Oficial — Nota x Súmula (CSV/Excel)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BeeCheck — Nota x Súmula</title>
+
+<!-- Favicon -->
+<link rel="icon" href="abelha.png" type="image/png">
+
+<!-- SEO Básico -->
+<meta name="description" content="BeeCheck 🐝 — sistema online para conferência rápida e precisa entre Nota Fiscal e Súmula. Desenvolvido pela Colmeia Logística.">
+<meta name="keywords" content="BeeCheck, logística, conferência, nota fiscal, súmula, controle de estoque, auditoria">
+<meta name="author" content="Colmeia Logística">
+
+<!-- Open Graph (Facebook, LinkedIn, WhatsApp) -->
+<meta property="og:title" content="BeeCheck — Nota x Súmula">
+<meta property="og:description" content="Conferência rápida e precisa entre Nota Fiscal e Súmula. Experimente o BeeCheck 🐝">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://seusiteaqui.com"> <!-- Troque pelo link real -->
+<meta property="og:image" content="abelha.png"> <!-- Pode ser logo ou print bonito do site -->
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="BeeCheck — Nota x Súmula">
+<meta name="twitter:description" content="Sistema online de conferência de NF x Súmula com visual Coca-Cola 🐝">
+<meta name="twitter:image" content="abelha.png">
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<!-- Estilo -->
 <style>
 :root{
   --coke-red:#E41C23;
   --coke-dark:#1A1A1A;
   --white:#ffffff;
   --radius:12px;
-  font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
 }
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:var(--coke-dark);-webkit-font-smoothing:antialiased;}
 .header{background:var(--coke-red);color:var(--white);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
 .brand{font-weight:700;font-size:18px}
-.container{max-width:1100px;margin:24px auto;padding:16px}
+.container{max-width:1200px;margin:20px auto;padding:16px}
 .card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:18px}
 .label{font-size:13px;color:#333;margin-bottom:6px;display:block}
 input[type=file]{display:block}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .btn{background:var(--coke-red);color:var(--white);border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 18px rgba(228,28,35,0.14)}
 .btn.secondary{background:transparent;color:var(--coke-dark);border:1px solid #eee}
 .btn.small{padding:8px 10px;font-size:14px}
 .progress{font-size:13px;color:#333;margin-top:8px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:14px}
-.card-item{background:#fff;border-radius:10px;padding:12px;border:1px solid #f0f0f0;box-shadow:0 6px 14px rgba(0,0,0,0.04);}
-.card-item h3{margin:4px 0;font-size:15px}
-.card-item p{margin:6px 0;font-size:13px}
+.table{width:100%;border-collapse:collapse;margin-top:12px;table-layout:fixed}
+.table th,.table td{border:1px solid #e8e8e8;padding:8px;font-size:13px;text-align:left;vertical-align:middle;overflow:hidden}
+.table th{background:#f9f9f9}
+.table td.center{text-align:center}
+.input-num{width:80px;padding:6px;border-radius:6px;border:1px solid #ddd}
+.search{padding:8px;border-radius:8px;border:1px solid #ddd;width:320px}
+.small{font-size:13px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .status-ok{color:green;font-weight:700}
 .status-error{color:red;font-weight:700}
-.editable{border-bottom:1px dashed #ddd;padding:2px 4px;border-radius:4px}
-.note{font-size:13px;color:#666;margin-top:10px}
+.icon-btn{background:transparent;border:0;cursor:pointer;font-size:14px}
+.note{font-size:13px;color:#666;margin-top:8px}
+footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark); color:var(--white); font-size:13px; margin-top:20px; border-radius:8px; }
+@media (max-width:900px){ .row{flex-direction:column;align-items:stretch} .search{width:100%} .input-num{width:68px} }
 </style>
 </head>
-<body>
 
+<body>
 <header class="header">
-  <div class="brand">Conferência Oficial — Nota x Súmula</div>
-  <div style="font-size:13px;color:#fff;opacity:0.9">Protótipo CSV/Excel • salvar como index.html</div>
+  <div class="brand">BeeCheck — Nota x Súmula, conferente online</div>
+  <div style="font-size:13px;color:#fff;opacity:0.95">🐝 Colmeia Logística</div>
 </header>
 
 <main class="container">
-<section class="card">
-  <div style="display:flex;gap:16px;flex-wrap:wrap">
-    <div style="flex:1;min-width:220px">
-      <label class="label">Arquivo da Nota Fiscal (CSV/XLSX)</label>
-      <input id="notaUpload" type="file" accept=".csv,.xlsx,.xls">
-    </div>
-    <div style="flex:1;min-width:220px">
-      <label class="label">Arquivo da Súmula (CSV/XLSX)</label>
-      <input id="sumulaUpload" type="file" accept=".csv,.xlsx,.xls">
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;justify-content:center">
-      <button id="conferirBtn" class="btn">Conferir</button>
-      <button id="recalcularBtn" class="btn small secondary">Recalcular</button>
-      <button id="exportBtn" class="btn small secondary">Exportar CSV</button>
-      <button id="limparBtn" class="btn small secondary">Limpar Tudo</button>
-    </div>
-  </div>
-  <div class="progress" id="progress"></div>
-  <div class="note">O arquivo deve conter: <code>Produto,Quantidade</code></div>
-</section>
 
-<section class="card">
-  <h3>Resultados — Todos os produtos (unidos)</h3>
-  <div id="grid" class="grid"></div>
-</section>
+  <!-- Importação banco -->
+  <section class="card">
+    <label class="label">Importar Banco (CSV ou Excel) — colunas: Código,Produto</label>
+    <input id="dbUpload" type="file" accept=".csv,.xlsx,.xls">
+    <div class="note">Se tiver cabeçalho. Formato: <code>Código,Produto</code>.</div>
+  </section>
+
+  <!-- Adicionar produtos NF/Súmula -->
+  <section class="card">
+    <div class="controls">
+      <input id="produtoInput" placeholder="Procure produto..." list="prodList" class="search" aria-label="Produto">
+      <datalist id="prodList"></datalist>
+      <input id="quantInput" type="number" min="0" placeholder="Quantidade" class="input-num" aria-label="Quantidade">
+      <button id="okNF" class="btn small">OK NF</button>
+      <button id="okSumula" class="btn small">OK Súmula</button>
+    </div>
+    <div class="note">Digite o produto, selecione na lista, informe a quantidade e clique em OK NF ou OK Súmula.</div>
+  </section>
+
+  <!-- Conferência -->
+  <section class="card">
+    <button id="conferirBtn" class="btn" disabled>Conferir</button>
+    <button id="novaConfBtn" class="btn small secondary">Nova Conferência</button>
+    <div id="progress" class="progress"></div>
+  </section>
+
+  <!-- Tabela de resultados -->
+  <section class="card">
+    <h3>Lista de Produtos para Conferência</h3>
+    <table class="table" id="prodTable">
+      <thead>
+        <tr>
+          <th style="width:10%">Código</th>
+          <th style="width:50%">Produto</th>
+          <th style="width:10%" class="center">NF</th>
+          <th style="width:10%" class="center">Súmula</th>
+          <th style="width:10%" class="center">Status</th>
+          <th style="width:10%" class="center">Divergência</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
 </main>
 
+<footer class="site-footer">
+  © 2025 BeeCheck — Todos os direitos reservados à Colmeia Logística 🐝
+</footer>
+
+<!-- Script principal -->
 <script>
-const notaUpload = document.getElementById('notaUpload');
-const sumulaUpload = document.getElementById('sumulaUpload');
+let bancoProdutos = [];
+let nfList = {};
+let sumulaList = {};
+const STORAGE_KEY = 'conferente_banco_v5';
+
+const dbUpload = document.getElementById('dbUpload');
+const produtoInput = document.getElementById('produtoInput');
+const prodList = document.getElementById('prodList');
+const quantInput = document.getElementById('quantInput');
+const okNF = document.getElementById('okNF');
+const okSumula = document.getElementById('okSumula');
 const conferirBtn = document.getElementById('conferirBtn');
-const recalcularBtn = document.getElementById('recalcularBtn');
-const exportBtn = document.getElementById('exportBtn');
-const limparBtn = document.getElementById('limparBtn');
-const grid = document.getElementById('grid');
+const novaConfBtn = document.getElementById('novaConfBtn');
+const prodTableBody = document.querySelector('#prodTable tbody');
 const progress = document.getElementById('progress');
 
-let produtosUnidos = [];
+function setProgress(msg){ progress.innerText=msg||''; }
+function escapeHtml(text){ return text==null?'':String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList})); }
 
-function setProgress(msg){ progress.innerText = msg || ''; }
+/* Parse CSV/XLSX */
+function guessCodeName(tokens){
+  const a=tokens[0]?tokens[0].trim():'', b=tokens[1]?tokens[1].trim():'';
+  if(/produto|nome/i.test(a)||/produto|nome/i.test(b)) return null;
+  const aDigits=(a.match(/\d/g)||[]).length, bDigits=(b.match(/\d/g)||[]).length;
+  if(aDigits>bDigits) return {code:a,name:b};
+  if(bDigits>aDigits) return {code:b,name:a};
+  return a.length<=b.length?{code:a,name:b}:{code:b,name:a};
+}
 
-function parseFile(file){
-  return new Promise((resolve,reject)=>{
+async function parseFile(file){
+  return new Promise((resolve)=>{
     const reader = new FileReader();
-    reader.onload = e=>{
-      const data = e.target.result;
-      let linhas = [];
-      if(file.name.endsWith('.csv')){
-        linhas = data.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
-      }else{
-        const workbook = XLSX.read(data,{type:'binary'});
-        const sheetName = workbook.SheetNames[0];
-        const sheet = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-        linhas = sheet.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
+    reader.onload=(e)=>{
+      let lines=[];
+      if(file.name.toLowerCase().endsWith('.csv')){
+        lines=e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+      } else {
+        try{
+          const workbook = XLSX.read(e.target.result,{type:'array'});
+          const sheetName = workbook.SheetNames[0];
+          const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+          lines = csv.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+        } catch{ setProgress('Erro ao ler Excel'); resolve([]); return; }
       }
-      const produtos = [];
-      linhas.forEach(line=>{
-        const match = line.match(/^(.+?)[,\;\t]\s*([0-9]+)$/);
-        if(match) produtos.push({nome:match[1].trim(), qtd:parseInt(match[2],10)});
+      const items=[];
+      lines.forEach(l=>{
+        const tokens=l.split(/[,;\t]/).map(t=>t.trim()).filter(t=>t);
+        if(tokens.length<2) return;
+        const g=guessCodeName(tokens);
+        if(!g) return;
+        items.push({codigo:g.code,nome:g.name});
       });
-      resolve(produtos);
+      resolve(items);
     };
-    if(file.name.endsWith('.csv')) reader.readAsText(file);
-    else reader.readAsBinaryString(file);
+    if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file,'UTF-8');
+    else reader.readAsArrayBuffer(file);
   });
 }
 
-function normalizeNome(nome){ return nome.trim().toLowerCase(); }
-
-function unirProdutos(prodNF, prodSumula){
-  const mapa = new Map();
-  function add(item,tipo){
-    const key = normalizeNome(item.nome);
-    if(!mapa.has(key)) mapa.set(key,{nomeDisplay:item.nome, nf:0, sumula:0});
-    const obj = mapa.get(key);
-    if(tipo==='nf') obj.nf=item.qtd;
-    else obj.sumula=item.qtd;
-  }
-  prodNF.forEach(p=>add(p,'nf'));
-  prodSumula.forEach(s=>add(s,'sumula'));
-  const arr=[]; let id=1;
-  for(const [k,v] of mapa) arr.push({id:id++, nome:v.nomeDisplay, nf:v.nf, sumula:v.sumula});
-  return arr;
+/* Render */
+function renderDatalist(){
+  prodList.innerHTML='';
+  bancoProdutos.forEach(p=>{
+    const opt=document.createElement('option');
+    opt.value=`${p.nome} (${p.codigo})`;
+    prodList.appendChild(opt);
+  });
 }
 
-function calcStatus(nf,sumula){
-  const divergencia = Math.abs(nf-sumula);
-  return {statusOk:nf===sumula, divergencia, texto:`NF ${nf} / Súmula ${sumula} → ${divergencia} divergência${divergencia!==1?'s':''}`};
-}
-
-function renderGrid(produtos){
-  grid.innerHTML='';
-  produtos.forEach(p=>{
-    const info = calcStatus(p.nf,p.sumula);
-    const div = document.createElement('div');
-    div.className='card-item';
-    div.innerHTML=`
-      <h3 contenteditable="true" class="editable nome" data-id="${p.id}">${p.nome}</h3>
-      <p><strong>ID:</strong> ${p.id}</p>
-      <p><strong>N.F.:</strong> <span contenteditable="true" class="editable nf" data-id="${p.id}">${p.nf}</span></p>
-      <p><strong>Súmula:</strong> <span contenteditable="true" class="editable sumula" data-id="${p.id}">${p.sumula}</span></p>
-      <p><strong>Status:</strong> <span class="${info.statusOk?'status-ok':'status-error'} status" data-id="${p.id}">${info.statusOk?'OK':'Não Conforme'}</span></p>
-      <p><strong>Divergências:</strong> <span class="divtxt" data-id="${p.id}">${info.texto}</span></p>
+function renderTable(conferido=false){
+  prodTableBody.innerHTML='';
+  const codigos = new Set([...Object.keys(nfList), ...Object.keys(sumulaList)]);
+  bancoProdutos.forEach(p=>{
+    if(!codigos.has(p.codigo)) return;
+    const nf = nfList[p.codigo]||0;
+    const sum = sumulaList[p.codigo]||0;
+    const diverg = Math.abs(nf-sum);
+    let statusText='', statusClass='';
+    if(conferido){
+      if(nf===sum){ statusText='Conforme'; statusClass='status-ok'; }
+      else { statusText='Não Conforme'; statusClass='status-error'; }
+    }
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${escapeHtml(p.codigo)}</td>
+      <td>${escapeHtml(p.nome)}</td>
+      <td class="center">${nf}</td>
+      <td class="center">${sum}</td>
+      <td class="center"><span class="${statusClass}">${statusText}</span></td>
+      <td class="center">${conferido?diverg:''}</td>
     `;
-    grid.appendChild(div);
-  });
-  attachEditHandlers();
-}
-
-function attachEditHandlers(){
-  grid.querySelectorAll('.editable.nf').forEach(el=>{
-    el.addEventListener('blur', e=>{
-      const id = Number(e.target.dataset.id);
-      const produto = produtosUnidos.find(x=>x.id===id);
-      if(produto){ produto.nf = parseInt(e.target.innerText)||0; const info=calcStatus(produto.nf,produto.sumula); updateGridRow(id,info); }
-    });
-  });
-  grid.querySelectorAll('.editable.sumula').forEach(el=>{
-    el.addEventListener('blur', e=>{
-      const id = Number(e.target.dataset.id);
-      const produto = produtosUnidos.find(x=>x.id===id);
-      if(produto){ produto.sumula = parseInt(e.target.innerText)||0; const info=calcStatus(produto.nf,produto.sumula); updateGridRow(id,info); }
-    });
+    prodTableBody.appendChild(tr);
   });
 }
 
-function updateGridRow(id,info){
-  const statusEl = grid.querySelector(`.status[data-id="${id}"]`);
-  const divtxt = grid.querySelector(`.divtxt[data-id="${id}"]`);
-  if(statusEl){ statusEl.className=info.statusOk?'status-ok status':'status-error status'; statusEl.innerText=info.statusOk?'OK':'Não Conforme'; }
-  if(divtxt) divtxt.innerText = info.texto;
+/* Eventos */
+dbUpload.addEventListener('change', async ()=>{
+  if(!dbUpload.files[0]) return;
+  setProgress('Lendo arquivo...');
+  const items = await parseFile(dbUpload.files[0]);
+  if(!items.length){ setProgress('Nenhum produto reconhecido'); return; }
+  bancoProdutos=items;
+  saveLocal();
+  renderDatalist();
+  setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
+});
+
+okNF.addEventListener('click', ()=>{
+  const val = Number(quantInput.value);
+  const sel = produtoInput.value.trim();
+  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
+  const match=bancoProdutos.find(p=>sel.includes(p.nome));
+  if(!match){ alert('Produto não encontrado'); return; }
+  nfList[match.codigo]=(nfList[match.codigo]||0)+val;
+  produtoInput.value=''; quantInput.value='';
+  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
+  renderTable();
+  setProgress(`Produto "${match.nome}" adicionado à NF (total: ${nfList[match.codigo]})`);
+  saveLocal();
+});
+
+okSumula.addEventListener('click', ()=>{
+  const val = Number(quantInput.value);
+  const sel = produtoInput.value.trim();
+  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
+  const match=bancoProdutos.find(p=>sel.includes(p.nome));
+  if(!match){ alert('Produto não encontrado'); return; }
+  sumulaList[match.codigo]=(sumulaList[match.codigo]||0)+val;
+  produtoInput.value=''; quantInput.value='';
+  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
+  renderTable();
+  setProgress(`Produto "${match.nome}" adicionado à Súmula (total: ${sumulaList[match.codigo]})`);
+  saveLocal();
+});
+
+conferirBtn.addEventListener('click', ()=>{
+  renderTable(true);
+  setProgress('Conferência concluída');
+});
+
+novaConfBtn.addEventListener('click', ()=>{
+  if(!confirm('Deseja iniciar nova conferência?')) return;
+  nfList={}; sumulaList={};
+  conferirBtn.disabled=true;
+  renderTable();
+  setProgress('Nova conferência iniciada');
+  saveLocal();
+});
+
+/* Inicialização */
+const saved = localStorage.getItem(STORAGE_KEY);
+if(saved){
+  const parsed=JSON.parse(saved);
+  bancoProdutos=parsed.banco||[];
+  nfList=parsed.nf||{};
+  sumulaList=parsed.sumula||{};
+  renderDatalist();
+  renderTable();
+  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
+  setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
 }
-
-conferirBtn.addEventListener('click', async ()=>{
-  if(!notaUpload.files[0]||!sumulaUpload.files[0]){ alert('Envie ambos arquivos.'); return; }
-  setProgress('Processando arquivos...');
-  const prodNF = await parseFile(notaUpload.files[0]);
-  const prodSumula = await parseFile(sumulaUpload.files[0]);
-  produtosUnidos = unirProdutos(prodNF,prodSumula);
-  produtosUnidos.forEach((p,i)=>p.id=i+1);
-  renderGrid(produtosUnidos);
-  setProgress('Conferência concluída.');
-});
-
-recalcularBtn.addEventListener('click', ()=>{ produtosUnidos.forEach(p=>updateGridRow(p.id,calcStatus(p.nf,p.sumula))); setProgress('Recalculo efetuado.'); });
-
-exportBtn.addEventListener('click', ()=>{
-  if(!produtosUnidos.length){ alert('Nada para exportar.'); return; }
-  const header = ['ID','Produto','NF','Súmula','Divergências','Status'];
-  const rows = produtosUnidos.map(p=>{ const info=calcStatus(p.nf,p.sumula); return [p.id,p.nome,p.nf,p.sumula,info.divergencia,info.statusOk?'OK':'Não Conforme']; });
-  const csv=[header.join(','),...rows.map(r=>r.join(','))].join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='conferencia_resultado.csv'; a.click(); a.remove(); URL.revokeObjectURL(url);
-  setProgress('CSV gerado.');
-});
-
-limparBtn.addEventListener('click', ()=>{
-  notaUpload.value='';
-  sumulaUpload.value='';
-  produtosUnidos=[];
-  grid.innerHTML='';
-  setProgress('');
-  <link rel="icon" href="abelha.png" type="image/png">
-});
 </script>
+
 </body>
 </html>
-
