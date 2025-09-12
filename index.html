@@ -4,20 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>BeeCheck — Nota x Súmula</title>
-
-<!-- Favicon -->
 <link rel="icon" href="abelha.png" type="image/png">
-
-<!-- SEO e Open Graph -->
-<meta name="description" content="Conferência rápida e precisa entre Nota Fiscal e Súmula. Experimente o BeeCheck 🐝">
-<meta property="og:title" content="BeeCheck — Nota x Súmula">
-<meta property="og:description" content="Conferência rápida e precisa entre Nota Fiscal e Súmula. Experimente o BeeCheck 🐝">
-<meta property="og:image" content="https://fernanda-li.github.io/CONFERENTE_ONLINE/abelha.png">
-<meta property="og:url" content="https://fernanda-li.github.io/CONFERENTE_ONLINE/">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary_large_image">
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{
   --coke-red:#E41C23;
@@ -30,10 +19,13 @@
 body{margin:0;background:#fff;color:var(--coke-dark);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh;}
 .header{background:var(--coke-red);color:var(--white);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
 .brand{font-weight:700;font-size:18px}
-.container{max-width:1200px;margin:20px auto;padding:16px;flex:1;}
+.nav-tabs{display:flex;gap:12px;margin-top:10px;margin-bottom:10px}
+.nav-tab{cursor:pointer;padding:8px 12px;border-radius:8px;background:#eee;font-weight:700}
+.nav-tab.active{background:var(--coke-red);color:#fff}
+.container{max-width:1200px;margin:0 auto;padding:16px;flex:1;}
 .card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:18px}
 .label{font-size:13px;color:#333;margin-bottom:6px;display:block}
-input[type=file]{display:block}
+input[type=file],input[type=text]{display:block}
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .btn{background:var(--coke-red);color:var(--white);border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 18px rgba(228,28,35,0.14)}
 .btn.secondary{background:transparent;color:var(--coke-dark);border:1px solid #eee}
@@ -44,6 +36,7 @@ input[type=file]{display:block}
 .table th{background:#f9f9f9}
 .table td.center{text-align:center}
 .input-num{width:80px;padding:6px;border-radius:6px;border:1px solid #ddd}
+.input-motorista{width:150px;padding:6px;border-radius:6px;border:1px solid #ddd}
 .search{padding:8px;border-radius:8px;border:1px solid #ddd;width:320px}
 .small{font-size:13px}
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -51,62 +44,79 @@ input[type=file]{display:block}
 .status-error{color:red;font-weight:700}
 .icon-btn{background:transparent;border:0;cursor:pointer;font-size:14px}
 .note{font-size:13px;color:#666;margin-top:8px}
+canvas{max-width:100%;height:300px;margin-top:16px;}
 footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark); color:var(--white); font-size:13px; margin-top:20px; border-radius:8px; }
-@media (max-width:900px){ .row{flex-direction:column;align-items:stretch} .search{width:100%} .input-num{width:68px} }
+@media (max-width:900px){ .row{flex-direction:column;align-items:stretch} .search{width:100%} .input-num,.input-motorista{width:100%} }
 </style>
 </head>
 <body>
 
 <header class="header">
-  <div class="brand">BeeCheck — Nota x Súmula, conferente online</div>
+  <div class="brand">BeeCheck — Nota x Súmula</div>
   <div style="font-size:13px;color:#fff;opacity:0.95">🐝 Colmeia Logística</div>
 </header>
 
+<div class="nav-tabs">
+  <div class="nav-tab active" data-tab="conferencia">Conferência</div>
+  <div class="nav-tab" data-tab="relatorios">Relatórios</div>
+</div>
+
 <main class="container">
 
-  <!-- Importação banco -->
-  <section class="card">
-    <label class="label">Importar Banco (CSV ou Excel) — colunas: Código,Produto</label>
-    <input id="dbUpload" type="file" accept=".csv,.xlsx,.xls">
-    <div class="note">Se tiver cabeçalho. Formato: <code>Código,Produto</code>.</div>
-  </section>
-
-  <!-- Adicionar produtos NF/Súmula -->
-  <section class="card">
-    <div class="controls">
-      <input id="produtoInput" placeholder="Procure produto..." list="prodList" class="search" aria-label="Produto">
-      <datalist id="prodList"></datalist>
-      <input id="quantInput" type="number" min="0" placeholder="Quantidade" class="input-num" aria-label="Quantidade">
-      <button id="okNF" class="btn small">OK NF</button>
-      <button id="okSumula" class="btn small">OK Súmula</button>
-    </div>
-    <div class="note">Digite o produto, selecione na lista, informe a quantidade e clique em OK NF ou OK Súmula.</div>
-  </section>
-
   <!-- Conferência -->
-  <section class="card">
-    <button id="conferirBtn" class="btn" disabled>Conferir</button>
-    <button id="novaConfBtn" class="btn small secondary">Nova Conferência</button>
-    <div id="progress" class="progress"></div>
-  </section>
+  <div id="conferencia" class="tab-content">
 
-  <!-- Tabela de resultados -->
-  <section class="card">
-    <h3>Lista de Produtos para Conferência</h3>
-    <table class="table" id="prodTable">
-      <thead>
-        <tr>
-          <th style="width:10%">Código</th>
-          <th style="width:50%">Produto</th>
-          <th style="width:10%" class="center">NF</th>
-          <th style="width:10%" class="center">Súmula</th>
-          <th style="width:10%" class="center">Status</th>
-          <th style="width:10%" class="center">Divergência</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <section class="card">
+      <label class="label">Importar Banco (CSV ou Excel) — colunas: Código,Produto</label>
+      <input id="dbUpload" type="file" accept=".csv,.xlsx,.xls">
+      <div class="note">Se tiver cabeçalho. Formato: <code>Código,Produto</code>.</div>
+    </section>
+
+    <section class="card">
+      <div class="controls">
+        <input id="produtoInput" placeholder="Procure produto..." list="prodList" class="search" aria-label="Produto">
+        <datalist id="prodList"></datalist>
+        <input id="quantInput" type="number" min="0" placeholder="Quantidade" class="input-num" aria-label="Quantidade">
+        <input id="motoristaInput" type="text" placeholder="Motorista (opcional)" class="input-motorista">
+        <button id="okNF" class="btn small">OK NF</button>
+        <button id="okSumula" class="btn small">OK Súmula</button>
+      </div>
+      <div class="note">Digite o produto, selecione na lista, informe a quantidade, opcionalmente o motorista e clique em OK NF ou OK Súmula.</div>
+    </section>
+
+    <section class="card">
+      <button id="conferirBtn" class="btn" disabled>Conferir</button>
+      <button id="novaConfBtn" class="btn small secondary">Nova Conferência</button>
+      <div id="progress" class="progress"></div>
+    </section>
+
+    <section class="card">
+      <h3>Lista de Produtos para Conferência</h3>
+      <table class="table" id="prodTable">
+        <thead>
+          <tr>
+            <th style="width:10%">Código</th>
+            <th style="width:40%">Produto</th>
+            <th style="width:10%" class="center">NF</th>
+            <th style="width:10%" class="center">Súmula</th>
+            <th style="width:15%" class="center">Motorista(s)</th>
+            <th style="width:10%" class="center">Status</th>
+            <th style="width:10%" class="center">Divergência</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <!-- Relatórios -->
+  <div id="relatorios" class="tab-content" style="display:none">
+    <section class="card">
+      <h3>Gráfico de Retornos por Motorista</h3>
+      <canvas id="graficoMotoristas"></canvas>
+    </section>
+  </div>
 
 </main>
 
@@ -115,15 +125,29 @@ footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark)
 </footer>
 
 <script>
+/* --- Navegação de abas --- */
+document.querySelectorAll('.nav-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c=>c.style.display='none');
+    document.getElementById(tab.dataset.tab).style.display='block';
+    if(tab.dataset.tab==='relatorios') renderGrafico();
+  });
+});
+
+/* --- Banco e conferência --- */
 let bancoProdutos = [];
 let nfList = {};
 let sumulaList = {};
-const STORAGE_KEY = 'conferente_banco_v5';
+let motoristaList = {}; // código → [{nome, quantidade}]
+const STORAGE_KEY = 'conferente_banco_v7';
 
 const dbUpload = document.getElementById('dbUpload');
 const produtoInput = document.getElementById('produtoInput');
 const prodList = document.getElementById('prodList');
 const quantInput = document.getElementById('quantInput');
+const motoristaInput = document.getElementById('motoristaInput');
 const okNF = document.getElementById('okNF');
 const okSumula = document.getElementById('okSumula');
 const conferirBtn = document.getElementById('conferirBtn');
@@ -133,9 +157,9 @@ const progress = document.getElementById('progress');
 
 function setProgress(msg){ progress.innerText=msg||''; }
 function escapeHtml(text){ return text==null?'':String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList})); }
+function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList,motorista:motoristaList})); }
 
-/* Parse CSV/XLSX */
+/* --- Parse CSV/XLSX --- */
 function guessCodeName(tokens){
   const a=tokens[0]?tokens[0].trim():'', b=tokens[1]?tokens[1].trim():'';
   if(/produto|nome/i.test(a)||/produto|nome/i.test(b)) return null;
@@ -144,7 +168,6 @@ function guessCodeName(tokens){
   if(bDigits>aDigits) return {code:b,name:a};
   return a.length<=b.length?{code:a,name:b}:{code:b,name:a};
 }
-
 async function parseFile(file){
   return new Promise((resolve)=>{
     const reader = new FileReader();
@@ -175,7 +198,7 @@ async function parseFile(file){
   });
 }
 
-/* Render */
+/* --- Render --- */
 function renderDatalist(){
   prodList.innerHTML='';
   bancoProdutos.forEach(p=>{
@@ -184,7 +207,6 @@ function renderDatalist(){
     prodList.appendChild(opt);
   });
 }
-
 function renderTable(conferido=false){
   prodTableBody.innerHTML='';
   const codigos = new Set([...Object.keys(nfList), ...Object.keys(sumulaList)]);
@@ -193,6 +215,11 @@ function renderTable(conferido=false){
     const nf = nfList[p.codigo]||0;
     const sum = sumulaList[p.codigo]||0;
     const diverg = Math.abs(nf-sum);
+
+    const motoristas = (motoristaList[p.codigo]||[])
+      .map(m=>`${escapeHtml(m.nome)} (${m.quantidade})`)
+      .join('<br>');
+
     let statusText='', statusClass='';
     if(conferido){
       if(nf===sum){ statusText='Conforme'; statusClass='status-ok'; }
@@ -204,6 +231,7 @@ function renderTable(conferido=false){
       <td>${escapeHtml(p.nome)}</td>
       <td class="center">${nf}</td>
       <td class="center">${sum}</td>
+      <td class="center">${motoristas}</td>
       <td class="center"><span class="${statusClass}">${statusText}</span></td>
       <td class="center">${conferido?diverg:''}</td>
     `;
@@ -211,7 +239,7 @@ function renderTable(conferido=false){
   });
 }
 
-/* Eventos */
+/* --- Eventos --- */
 dbUpload.addEventListener('change', async ()=>{
   if(!dbUpload.files[0]) return;
   setProgress('Lendo arquivo...');
@@ -223,33 +251,30 @@ dbUpload.addEventListener('change', async ()=>{
   setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
 });
 
-okNF.addEventListener('click', ()=>{
+function adicionarProduto(lista){
   const val = Number(quantInput.value);
   const sel = produtoInput.value.trim();
+  const motorista = motoristaInput.value.trim();
   if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
   const match=bancoProdutos.find(p=>sel.includes(p.nome));
   if(!match){ alert('Produto não encontrado'); return; }
-  nfList[match.codigo]=(nfList[match.codigo]||0)+val;
-  produtoInput.value=''; quantInput.value='';
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
-  renderTable();
-  setProgress(`Produto "${match.nome}" adicionado à NF (total: ${nfList[match.codigo]})`);
-  saveLocal();
-});
 
-okSumula.addEventListener('click', ()=>{
-  const val = Number(quantInput.value);
-  const sel = produtoInput.value.trim();
-  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
-  const match=bancoProdutos.find(p=>sel.includes(p.nome));
-  if(!match){ alert('Produto não encontrado'); return; }
-  sumulaList[match.codigo]=(sumulaList[match.codigo]||0)+val;
-  produtoInput.value=''; quantInput.value='';
+  lista[match.codigo]=(lista[match.codigo]||0)+val;
+
+  if(motorista){
+    if(!motoristaList[match.codigo]) motoristaList[match.codigo]=[];
+    motoristaList[match.codigo].push({nome:motorista,quantidade:val});
+  }
+
+  produtoInput.value=''; quantInput.value=''; motoristaInput.value='';
   conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
   renderTable();
-  setProgress(`Produto "${match.nome}" adicionado à Súmula (total: ${sumulaList[match.codigo]})`);
+  setProgress(`Produto "${match.nome}" adicionado`);
   saveLocal();
-});
+}
+
+okNF.addEventListener('click', ()=>adicionarProduto(nfList));
+okSumula.addEventListener('click', ()=>adicionarProduto(sumulaList));
 
 conferirBtn.addEventListener('click', ()=>{
   renderTable(true);
@@ -258,24 +283,55 @@ conferirBtn.addEventListener('click', ()=>{
 
 novaConfBtn.addEventListener('click', ()=>{
   if(!confirm('Deseja iniciar nova conferência?')) return;
-  nfList={}; sumulaList={};
+  nfList={}; sumulaList={}; motoristaList={};
   conferirBtn.disabled=true;
   renderTable();
   setProgress('Nova conferência iniciada');
   saveLocal();
 });
 
-/* Inicialização */
+/* --- Inicialização --- */
 const saved = localStorage.getItem(STORAGE_KEY);
 if(saved){
   const parsed=JSON.parse(saved);
   bancoProdutos=parsed.banco||[];
   nfList=parsed.nf||{};
   sumulaList=parsed.sumula||{};
+  motoristaList=parsed.motorista||{};
   renderDatalist();
   renderTable();
   conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
   setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
+}
+
+/* --- Gráfico de motoristas --- */
+function renderGrafico(){
+  const ctx = document.getElementById('graficoMotoristas').getContext('2d');
+  const contagemMotoristas={};
+
+  Object.values(motoristaList).forEach(lista=>{
+    lista.forEach(m=>{
+      contagemMotoristas[m.nome]=(contagemMotoristas[m.nome]||0)+m.quantidade;
+    });
+  });
+
+  const labels = Object.keys(contagemMotoristas);
+  const data = Object.values(contagemMotoristas);
+  if(window.chartMotoristas) window.chartMotoristas.destroy();
+  window.chartMotoristas = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Retornos por motorista',
+        data,
+        backgroundColor:'rgba(228,28,35,0.6)',
+        borderColor:'rgba(228,28,35,1)',
+        borderWidth:1
+      }]
+    },
+    options:{ scales:{ y:{beginAtZero:true,precision:0} } }
+  });
 }
 </script>
 
