@@ -17,8 +17,8 @@
 <meta property="og:title" content="BeeCheck — Nota x Súmula">
 <meta property="og:description" content="Conferência rápida e precisa entre Nota Fiscal e Súmula. Experimente o BeeCheck 🐝">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://seusiteaqui.com"> <!-- Troque pelo link real -->
-<meta property="og:image" content="abelha.png"> <!-- Pode ser logo ou print bonito do site -->
+<meta property="og:url" content="https://seusiteaqui.com"> <!-- troque pelo link real do seu site -->
+<meta property="og:image" content="abelha.png"> <!-- imagem usada no compartilhamento -->
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -26,10 +26,10 @@
 <meta name="twitter:description" content="Sistema online de conferência de NF x Súmula com visual Coca-Cola 🐝">
 <meta name="twitter:image" content="abelha.png">
 
-<!-- Scripts -->
+<!-- Biblioteca XLSX -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-<!-- Estilo -->
+<!-- Estilos -->
 <style>
 :root{
   --coke-red:#E41C23;
@@ -39,10 +39,21 @@
   font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
 }
 *{box-sizing:border-box}
-body{margin:0;background:#fff;color:var(--coke-dark);-webkit-font-smoothing:antialiased;}
+
+/* --- layout flex para empurrar footer pro fim --- */
+html,body{
+  height:100%;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+  color:var(--coke-dark);
+  -webkit-font-smoothing:antialiased;
+}
+
 .header{background:var(--coke-red);color:var(--white);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
 .brand{font-weight:700;font-size:18px}
-.container{max-width:1200px;margin:20px auto;padding:16px}
+.container{max-width:1200px;margin:20px auto;padding:16px;flex:1;} /* flex:1 empurra footer para baixo */
 .card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:18px}
 .label{font-size:13px;color:#333;margin-bottom:6px;display:block}
 input[type=file]{display:block}
@@ -92,7 +103,7 @@ footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark)
       <button id="okNF" class="btn small">OK NF</button>
       <button id="okSumula" class="btn small">OK Súmula</button>
     </div>
-    <div class="note">Digite o produto, selecione na lista, informe a quantidade e clique em OK NF ou OK Súmula.</div>
+    <div class="note">Digite o produto, selecione na lista (ex.: Produto X (123)), informe a quantidade e clique em OK NF ou OK Súmula.</div>
   </section>
 
   <!-- Conferência -->
@@ -128,11 +139,13 @@ footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark)
 
 <!-- Script principal -->
 <script>
-let bancoProdutos = [];
-let nfList = {};
-let sumulaList = {};
+/* Estado */
+let bancoProdutos = []; // array {codigo,nome}
+let nfList = {}; // mapa codigo -> quantidade
+let sumulaList = {}; // mapa codigo -> quantidade
 const STORAGE_KEY = 'conferente_banco_v5';
 
+/* Elementos DOM */
 const dbUpload = document.getElementById('dbUpload');
 const produtoInput = document.getElementById('produtoInput');
 const prodList = document.getElementById('prodList');
@@ -144,42 +157,66 @@ const novaConfBtn = document.getElementById('novaConfBtn');
 const prodTableBody = document.querySelector('#prodTable tbody');
 const progress = document.getElementById('progress');
 
-function setProgress(msg){ progress.innerText=msg||''; }
-function escapeHtml(text){ return text==null?'':String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList})); }
+function setProgress(msg){ progress.innerText = msg || ''; }
+function escapeHtml(text){ return text==null ? '' : String(text).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-/* Parse CSV/XLSX */
-function guessCodeName(tokens){
-  const a=tokens[0]?tokens[0].trim():'', b=tokens[1]?tokens[1].trim():'';
-  if(/produto|nome/i.test(a)||/produto|nome/i.test(b)) return null;
-  const aDigits=(a.match(/\d/g)||[]).length, bDigits=(b.match(/\d/g)||[]).length;
-  if(aDigits>bDigits) return {code:a,name:b};
-  if(bDigits>aDigits) return {code:b,name:a};
-  return a.length<=b.length?{code:a,name:b}:{code:b,name:a};
+/* Salvar/Carregar localStorage */
+function saveLocal(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList}));
+  }catch(e){ console.error(e); }
+}
+function loadLocal(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return;
+  try{
+    const parsed = JSON.parse(raw);
+    bancoProdutos = parsed.banco || [];
+    nfList = parsed.nf || {};
+    sumulaList = parsed.sumula || {};
+  } catch(e){ console.error(e); }
 }
 
+/* Heurística para reconhecer código/nome do CSV/XLSX */
+function guessCodeName(tokens){
+  const a = tokens[0] ? tokens[0].trim() : '';
+  const b = tokens[1] ? tokens[1].trim() : '';
+  if(/produto|nome|descri|descrição/i.test(a) || /produto|nome|descri|descrição/i.test(b)) return null;
+  const aDigits = (a.match(/\d/g)||[]).length;
+  const bDigits = (b.match(/\d/g)||[]).length;
+  if(aDigits > bDigits) return {code:a, name:b};
+  if(bDigits > aDigits) return {code:b, name:a};
+  return a.length <= b.length ? {code:a,name:b} : {code:b,name:a};
+}
+
+/* Ler arquivo CSV / XLSX */
 async function parseFile(file){
   return new Promise((resolve)=>{
     const reader = new FileReader();
-    reader.onload=(e)=>{
-      let lines=[];
+    reader.onload = (e) => {
+      let lines = [];
       if(file.name.toLowerCase().endsWith('.csv')){
-        lines=e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+        lines = e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
       } else {
         try{
-          const workbook = XLSX.read(e.target.result,{type:'array'});
+          const workbook = XLSX.read(e.target.result, {type:'array'});
           const sheetName = workbook.SheetNames[0];
           const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
           lines = csv.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
-        } catch{ setProgress('Erro ao ler Excel'); resolve([]); return; }
+        } catch(err){
+          console.error(err);
+          setProgress('Erro ao ler arquivo Excel');
+          resolve([]);
+          return;
+        }
       }
-      const items=[];
+      const items = [];
       lines.forEach(l=>{
-        const tokens=l.split(/[,;\t]/).map(t=>t.trim()).filter(t=>t);
-        if(tokens.length<2) return;
-        const g=guessCodeName(tokens);
+        const tokens = l.split(/[,;\t]/).map(t=>t.trim()).filter(t=>t);
+        if(tokens.length < 2) return;
+        const g = guessCodeName(tokens);
         if(!g) return;
-        items.push({codigo:g.code,nome:g.name});
+        items.push({codigo: g.code, nome: g.name});
       });
       resolve(items);
     };
@@ -188,109 +225,164 @@ async function parseFile(file){
   });
 }
 
-/* Render */
+/* Render datalist (autocompletar) */
 function renderDatalist(){
-  prodList.innerHTML='';
+  prodList.innerHTML = '';
   bancoProdutos.forEach(p=>{
-    const opt=document.createElement('option');
-    opt.value=`${p.nome} (${p.codigo})`;
+    const opt = document.createElement('option');
+    opt.value = `${p.nome} (${p.codigo})`;
     prodList.appendChild(opt);
   });
 }
 
+/* Render tabela: só mostra itens que foram adicionados (NF ou súmula) */
 function renderTable(conferido=false){
-  prodTableBody.innerHTML='';
+  prodTableBody.innerHTML = '';
   const codigos = new Set([...Object.keys(nfList), ...Object.keys(sumulaList)]);
   bancoProdutos.forEach(p=>{
     if(!codigos.has(p.codigo)) return;
-    const nf = nfList[p.codigo]||0;
-    const sum = sumulaList[p.codigo]||0;
-    const diverg = Math.abs(nf-sum);
-    let statusText='', statusClass='';
+    const nf = Number(nfList[p.codigo] || 0);
+    const sum = Number(sumulaList[p.codigo] || 0);
+    const diverg = Math.abs(nf - sum);
+    let statusText = '', statusClass = '';
     if(conferido){
-      if(nf===sum){ statusText='Conforme'; statusClass='status-ok'; }
-      else { statusText='Não Conforme'; statusClass='status-error'; }
+      if(nf === sum){ statusText = 'Conforme'; statusClass = 'status-ok'; }
+      else { statusText = 'Não Conforme'; statusClass = 'status-error'; }
     }
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
       <td>${escapeHtml(p.codigo)}</td>
       <td>${escapeHtml(p.nome)}</td>
       <td class="center">${nf}</td>
       <td class="center">${sum}</td>
       <td class="center"><span class="${statusClass}">${statusText}</span></td>
-      <td class="center">${conferido?diverg:''}</td>
+      <td class="center">${conferido ? diverg : ''}</td>
     `;
     prodTableBody.appendChild(tr);
   });
 }
 
-/* Eventos */
+/* Extrair código a partir do valor do input (formato: Nome do Produto (CÓDIGO)) */
+function getCodeFromSelection(sel){
+  if(!sel) return null;
+  const m = sel.match(/\(([^()]+)\)\s*$/);
+  if(m && m[1]) return m[1];
+  // fallback: procurar por nome parcial
+  const found = bancoProdutos.find(p => sel === p.nome || sel.includes(p.nome));
+  return found ? found.codigo : null;
+}
+
+/* Atualiza estado do botão Conferir (ativo apenas se ambos tiverem pelo menos um item) */
+function updateConferirState(){
+  const hasNF = Object.keys(nfList).length > 0;
+  const hasSumula = Object.keys(sumulaList).length > 0;
+  conferirBtn.disabled = !(hasNF && hasSumula);
+}
+
+/* --- Eventos --- */
 dbUpload.addEventListener('change', async ()=>{
   if(!dbUpload.files[0]) return;
   setProgress('Lendo arquivo...');
   const items = await parseFile(dbUpload.files[0]);
   if(!items.length){ setProgress('Nenhum produto reconhecido'); return; }
-  bancoProdutos=items;
+
+  // preservar quantidades existentes para códigos que permaneçam
+  const newBanco = items;
+  const preservedNF = {};
+  const preservedSum = {};
+  newBanco.forEach(p=>{
+    if(nfList[p.codigo]) preservedNF[p.codigo] = nfList[p.codigo];
+    if(sumulaList[p.codigo]) preservedSum[p.codigo] = sumulaList[p.codigo];
+  });
+  bancoProdutos = newBanco;
+  nfList = preservedNF;
+  sumulaList = preservedSum;
+
   saveLocal();
   renderDatalist();
+  renderTable();
+  updateConferirState();
   setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
 });
 
+/* Adicionar à NF (soma valores repetidos) */
 okNF.addEventListener('click', ()=>{
-  const val = Number(quantInput.value);
+  const val = Number(quantInput.value || 0);
   const sel = produtoInput.value.trim();
-  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
-  const match=bancoProdutos.find(p=>sel.includes(p.nome));
-  if(!match){ alert('Produto não encontrado'); return; }
-  nfList[match.codigo]=(nfList[match.codigo]||0)+val;
-  produtoInput.value=''; quantInput.value='';
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
-  renderTable();
-  setProgress(`Produto "${match.nome}" adicionado à NF (total: ${nfList[match.codigo]})`);
+  if(!val || !sel){ alert('Selecione produto e quantidade'); return; }
+
+  const code = getCodeFromSelection(sel);
+  let match = bancoProdutos.find(p => p.codigo === code);
+  if(!match){
+    // tentativa por nome
+    match = bancoProdutos.find(p => sel.includes(p.nome));
+    if(!match){ alert('Produto não encontrado no banco'); return; }
+  }
+  const codigo = match.codigo;
+  nfList[codigo] = (Number(nfList[codigo]||0) + val);
+  produtoInput.value = '';
+  quantInput.value = '';
   saveLocal();
+  renderTable();
+  updateConferirState();
+  setProgress(`Produto "${match.nome}" adicionado à NF (total: ${nfList[codigo]})`);
 });
 
+/* Adicionar à Súmula (soma valores repetidos) */
 okSumula.addEventListener('click', ()=>{
-  const val = Number(quantInput.value);
+  const val = Number(quantInput.value || 0);
   const sel = produtoInput.value.trim();
-  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
-  const match=bancoProdutos.find(p=>sel.includes(p.nome));
-  if(!match){ alert('Produto não encontrado'); return; }
-  sumulaList[match.codigo]=(sumulaList[match.codigo]||0)+val;
-  produtoInput.value=''; quantInput.value='';
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
-  renderTable();
-  setProgress(`Produto "${match.nome}" adicionado à Súmula (total: ${sumulaList[match.codigo]})`);
+  if(!val || !sel){ alert('Selecione produto e quantidade'); return; }
+
+  const code = getCodeFromSelection(sel);
+  let match = bancoProdutos.find(p => p.codigo === code);
+  if(!match){
+    match = bancoProdutos.find(p => sel.includes(p.nome));
+    if(!match){ alert('Produto não encontrado no banco'); return; }
+  }
+  const codigo = match.codigo;
+  sumulaList[codigo] = (Number(sumulaList[codigo]||0) + val);
+  produtoInput.value = '';
+  quantInput.value = '';
   saveLocal();
+  renderTable();
+  updateConferirState();
+  setProgress(`Produto "${match.nome}" adicionado à Súmula (total: ${sumulaList[codigo]})`);
 });
 
+/* Conferir: mostra Conforme/Não Conforme e divergências */
 conferirBtn.addEventListener('click', ()=>{
   renderTable(true);
-  setProgress('Conferência concluída');
+  // resumo rápido
+  const codigos = [...new Set([...Object.keys(nfList), ...Object.keys(sumulaList)])];
+  let divergencias = 0;
+  codigos.forEach(c => {
+    const a = Number(nfList[c]||0), b = Number(sumulaList[c]||0);
+    if(a !== b) divergencias++;
+  });
+  setProgress(divergencias === 0 ? 'Conferência concluída — Todos conforme ✅' : `Conferência concluída — ${divergencias} divergência(s) encontrada(s) ❌`);
 });
 
+/* Nova conferência (limpa só as listas, não o banco) */
 novaConfBtn.addEventListener('click', ()=>{
-  if(!confirm('Deseja iniciar nova conferência?')) return;
-  nfList={}; sumulaList={};
-  conferirBtn.disabled=true;
-  renderTable();
-  setProgress('Nova conferência iniciada');
+  if(!confirm('Deseja iniciar nova conferência? Isso limpará apenas as quantidades de NF e Súmula, mantendo o banco de produtos.')) return;
+  nfList = {};
+  sumulaList = {};
   saveLocal();
+  renderTable();
+  updateConferirState();
+  setProgress('Nova conferência iniciada');
 });
 
-/* Inicialização */
-const saved = localStorage.getItem(STORAGE_KEY);
-if(saved){
-  const parsed=JSON.parse(saved);
-  bancoProdutos=parsed.banco||[];
-  nfList=parsed.nf||{};
-  sumulaList=parsed.sumula||{};
-  renderDatalist();
-  renderTable();
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
-  setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
-}
-</script>
+/* Inicialização: carregar localStorage e renderizar */
+loadLocal();
+renderDatalist();
+renderTable();
+updateConferirState();
+if(bancoProdutos.length) setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
+else setProgress('Nenhum banco carregado. Importe uma planilha.');
 
+</script>
 </body>
 </html>
+
