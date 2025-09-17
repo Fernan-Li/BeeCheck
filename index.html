@@ -4,9 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>BeeCheck — Nota x Súmula</title>
+
 <link rel="icon" href="abelha.png" type="image/png">
+<meta name="description" content="Conferência rápida e precisa entre Nota Fiscal e Súmula. Experimente o BeeCheck 🐝">
+
+<!-- Biblioteca XLSX -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 :root{
   --coke-red:#E41C23;
@@ -17,15 +21,13 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:var(--coke-dark);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh;}
-.header{background:var(--coke-red);color:var(--white);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
+.header{background:var(--coke-red);color:var(--white);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);}
 .brand{font-weight:700;font-size:18px}
-.nav-tabs{display:flex;gap:12px;margin-top:10px;margin-bottom:10px}
-.nav-tab{cursor:pointer;padding:8px 12px;border-radius:8px;background:#eee;font-weight:700}
-.nav-tab.active{background:var(--coke-red);color:#fff}
-.container{max-width:1200px;margin:0 auto;padding:16px;flex:1;}
+.user-info{display:flex;align-items:center;gap:6px;font-size:13px;position:relative;}
+.user-info button{margin-left:6px;padding:4px 8px;font-size:12px;border-radius:8px;border:none;background:#fff;color:var(--coke-red);cursor:pointer}
+.container{max-width:1200px;margin:20px auto;padding:16px;flex:1;}
 .card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:18px}
 .label{font-size:13px;color:#333;margin-bottom:6px;display:block}
-input[type=file],input[type=text]{display:block}
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .btn{background:var(--coke-red);color:var(--white);border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 18px rgba(228,28,35,0.14)}
 .btn.secondary{background:transparent;color:var(--coke-dark);border:1px solid #eee}
@@ -36,85 +38,108 @@ input[type=file],input[type=text]{display:block}
 .table th{background:#f9f9f9}
 .table td.center{text-align:center}
 .input-num{width:80px;padding:6px;border-radius:6px;border:1px solid #ddd}
-.input-motorista{width:150px;padding:6px;border-radius:6px;border:1px solid #ddd}
 .search{padding:8px;border-radius:8px;border:1px solid #ddd;width:320px}
-.small{font-size:13px}
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .status-ok{color:green;font-weight:700}
 .status-error{color:red;font-weight:700}
-.icon-btn{background:transparent;border:0;cursor:pointer;font-size:14px}
 .note{font-size:13px;color:#666;margin-top:8px}
-canvas{max-width:100%;height:300px;margin-top:16px;}
 footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark); color:var(--white); font-size:13px; margin-top:20px; border-radius:8px; }
-@media (max-width:900px){ .row{flex-direction:column;align-items:stretch} .search{width:100%} .input-num,.input-motorista{width:100%} }
+
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:1000;}
+.modal-card{background:white;padding:20px;border-radius:12px;max-width:420px;width:94%;}
+
+.tabs{display:flex;gap:12px;margin-bottom:12px}
+.tab-btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:#eee}
+.tab-btn.active{background:var(--coke-red);color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+@media (max-width:900px){ .search{width:100%} .input-num{width:68px} .controls{flex-direction:column;align-items:stretch} .user-info span{display:none} }
 </style>
 </head>
 <body>
 
 <header class="header">
   <div class="brand">BeeCheck — Nota x Súmula</div>
-  <div style="font-size:13px;color:#fff;opacity:0.95">🐝 Colmeia Logística</div>
+  <div class="user-info" title="Perfil">
+    <img id="userAvatar" src="https://fernanda-li.github.io/CONFERENTE_ONLINE/abelha.png" width="36" height="36" style="border-radius:50%;object-fit:cover">
+    <span id="userName">Usuário</span>
+    <button id="editProfileBtn" aria-label="Editar perfil">Alterar Perfil</button>
+    <button id="logoutBtn" aria-label="Sair" title="Sair">Sair</button>
+  </div>
 </header>
-
-<div class="nav-tabs">
-  <div class="nav-tab active" data-tab="conferencia">Conferência</div>
-  <div class="nav-tab" data-tab="relatorios">Relatórios</div>
-</div>
 
 <main class="container">
 
-  <!-- Conferência -->
-  <div id="conferencia" class="tab-content">
+  <!-- Abas -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tabConferencia">Conferência</button>
+    <button class="tab-btn" data-tab="tabHistorico">Histórico</button>
+  </div>
 
+  <!-- Aba Conferência -->
+  <div id="tabConferencia" class="tab-content active">
+    <!-- Importação banco -->
     <section class="card">
       <label class="label">Importar Banco (CSV ou Excel) — colunas: Código,Produto</label>
       <input id="dbUpload" type="file" accept=".csv,.xlsx,.xls">
-      <div class="note">Se tiver cabeçalho. Formato: <code>Código,Produto</code>.</div>
+      <div class="note">Formato: <code>Código,Produto</code>. (Com ou sem cabeçalho)</div>
     </section>
 
+    <!-- Adicionar produtos NF/Súmula -->
     <section class="card">
       <div class="controls">
         <input id="produtoInput" placeholder="Procure produto..." list="prodList" class="search" aria-label="Produto">
         <datalist id="prodList"></datalist>
-        <input id="quantInput" type="number" min="0" placeholder="Quantidade" class="input-num" aria-label="Quantidade">
-        <input id="motoristaInput" type="text" placeholder="Motorista (opcional)" class="input-motorista">
+        <input id="quantInput" type="number" min="1" placeholder="Quantidade" class="input-num" aria-label="Quantidade">
         <button id="okNF" class="btn small">OK NF</button>
         <button id="okSumula" class="btn small">OK Súmula</button>
       </div>
-      <div class="note">Digite o produto, selecione na lista, informe a quantidade, opcionalmente o motorista e clique em OK NF ou OK Súmula.</div>
+      <div class="note">Digite/cole o produto, escolha na lista e informe a quantidade.</div>
     </section>
 
+    <!-- Conferência -->
     <section class="card">
       <button id="conferirBtn" class="btn" disabled>Conferir</button>
       <button id="novaConfBtn" class="btn small secondary">Nova Conferência</button>
       <div id="progress" class="progress"></div>
     </section>
 
+    <!-- Tabela de resultados -->
     <section class="card">
       <h3>Lista de Produtos para Conferência</h3>
       <table class="table" id="prodTable">
         <thead>
           <tr>
             <th style="width:10%">Código</th>
-            <th style="width:40%">Produto</th>
+            <th style="width:50%">Produto</th>
             <th style="width:10%" class="center">NF</th>
             <th style="width:10%" class="center">Súmula</th>
-            <th style="width:15%" class="center">Motorista(s)</th>
             <th style="width:10%" class="center">Status</th>
-            <th style="width:10%" class="center">Divergência</th>
+            <th style="width:10%" class="center">Qtd Conferida</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </section>
-
   </div>
 
-  <!-- Relatórios -->
-  <div id="relatorios" class="tab-content" style="display:none">
+  <!-- Aba Histórico -->
+  <div id="tabHistorico" class="tab-content">
     <section class="card">
-      <h3>Gráfico de Retornos por Motorista</h3>
-      <canvas id="graficoMotoristas"></canvas>
+      <h3>Histórico de Conferências</h3>
+      <table class="table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Usuário</th>
+            <th>Total NF</th>
+            <th>Total Súmula</th>
+            <th>Total Divergências</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </section>
   </div>
 
@@ -124,216 +149,304 @@ footer.site-footer{ text-align:center; padding:12px; background:var(--coke-dark)
   © 2025 BeeCheck — Todos os direitos reservados à Colmeia Logística 🐝
 </footer>
 
+<!-- Modal de configuração do perfil -->
+<div id="userModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h2>Bem-vindo ao BeeCheck 🐝</h2>
+    <p>Configure seu usuário para começar:</p>
+    <input id="inputNomeModal" placeholder="Nome do usuário" class="search" style="width:100%;margin:10px 0;">
+    <input id="inputCargoModal" placeholder="Cargo" class="search" style="width:100%;margin-bottom:10px;">
+    <input id="inputAvatarModal" type="file" accept="image/*" style="margin-bottom:12px;">
+    <button id="btnSalvarModal" class="btn" style="width:100%;">Salvar e Começar</button>
+  </div>
+</div>
+
 <script>
-/* --- Navegação de abas --- */
-document.querySelectorAll('.nav-tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(c=>c.style.display='none');
-    document.getElementById(tab.dataset.tab).style.display='block';
-    if(tab.dataset.tab==='relatorios') renderGrafico();
-  });
-});
+// Dados e chaves
+let bancoProdutos = [], nfList = {}, sumulaList = {}, history = [];
+let currentUser = { nome:'Usuário', cargo:'', avatar:'https://fernanda-li.github.io/CONFERENTE_ONLINE/abelha.png' };
+const STORAGE_KEY = 'conferente_banco_v5', HISTORY_KEY = 'conferente_history_v5';
 
-/* --- Banco e conferência --- */
-let bancoProdutos = [];
-let nfList = {};
-let sumulaList = {};
-let motoristaList = {}; // código → [{nome, quantidade}]
-const STORAGE_KEY = 'conferente_banco_v7';
-
+// Elementos
 const dbUpload = document.getElementById('dbUpload');
 const produtoInput = document.getElementById('produtoInput');
 const prodList = document.getElementById('prodList');
 const quantInput = document.getElementById('quantInput');
-const motoristaInput = document.getElementById('motoristaInput');
 const okNF = document.getElementById('okNF');
 const okSumula = document.getElementById('okSumula');
 const conferirBtn = document.getElementById('conferirBtn');
 const novaConfBtn = document.getElementById('novaConfBtn');
 const prodTableBody = document.querySelector('#prodTable tbody');
+const historyTableBody = document.querySelector('#historyTable tbody');
 const progress = document.getElementById('progress');
+const userNameEl = document.getElementById('userName');
+const userAvatarEl = document.getElementById('userAvatar');
+const editProfileBtn = document.getElementById('editProfileBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 
-function setProgress(msg){ progress.innerText=msg||''; }
-function escapeHtml(text){ return text==null?'':String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({banco:bancoProdutos,nf:nfList,sumula:sumulaList,motorista:motoristaList})); }
+// Modal elements
+const userModal = document.getElementById('userModal');
+const inputNomeModal = document.getElementById('inputNomeModal');
+const inputCargoModal = document.getElementById('inputCargoModal');
+const inputAvatarModal = document.getElementById('inputAvatarModal');
+const btnSalvarModal = document.getElementById('btnSalvarModal');
 
-/* --- Parse CSV/XLSX --- */
-function guessCodeName(tokens){
-  const a=tokens[0]?tokens[0].trim():'', b=tokens[1]?tokens[1].trim():'';
-  if(/produto|nome/i.test(a)||/produto|nome/i.test(b)) return null;
-  const aDigits=(a.match(/\d/g)||[]).length, bDigits=(b.match(/\d/g)||[]).length;
-  if(aDigits>bDigits) return {code:a,name:b};
-  if(bDigits>aDigits) return {code:b,name:a};
-  return a.length<=b.length?{code:a,name:b}:{code:b,name:a};
+// Helpers
+function setProgress(msg){ progress.innerText = msg || ''; }
+function escapeHtml(text){ return text==null ? '' : String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function saveLocal(){
+  const store = { banco: bancoProdutos, nf: nfList, sumula: sumulaList, currentUser };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
+
+// Advinha colunas Código/Produto
+function guessCodeName(tokens){
+  const a = tokens[0]?tokens[0].trim():'', b = tokens[1]?tokens[1].trim():'';
+  if(/produto|nome/i.test(a) || /produto|nome/i.test(b)) return null;
+  const aDigits = (a.match(/\d/g)||[]).length, bDigits = (b.match(/\d/g)||[]).length;
+  if(aDigits > bDigits) return { code: a, name: b };
+  if(bDigits > aDigits) return { code: b, name: a };
+  return a.length <= b.length ? { code: a, name: b } : { code: b, name: a };
+}
+
+// Parse CSV / XLSX
 async function parseFile(file){
   return new Promise((resolve)=>{
     const reader = new FileReader();
-    reader.onload=(e)=>{
-      let lines=[];
+    reader.onload = (e) => {
+      let lines = [];
       if(file.name.toLowerCase().endsWith('.csv')){
-        lines=e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+        lines = e.target.result.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
       } else {
-        try{
-          const workbook = XLSX.read(e.target.result,{type:'array'});
-          const sheetName = workbook.SheetNames[0];
-          const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+        try {
+          const workbook = XLSX.read(e.target.result, { type: 'array' });
+          const sheet = workbook.SheetNames[0];
+          const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheet]);
           lines = csv.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
-        } catch{ setProgress('Erro ao ler Excel'); resolve([]); return; }
+        } catch(err){
+          setProgress('Erro ao ler Excel');
+          resolve([]);
+          return;
+        }
       }
-      const items=[];
-      lines.forEach(l=>{
-        const tokens=l.split(/[,;\t]/).map(t=>t.trim()).filter(t=>t);
-        if(tokens.length<2) return;
-        const g=guessCodeName(tokens);
+      const items = [];
+      lines.forEach(l => {
+        const tokens = l.split(/[,;\t]/).map(t=>t.trim()).filter(t=>t);
+        if(tokens.length < 2) return;
+        const g = guessCodeName(tokens);
         if(!g) return;
-        items.push({codigo:g.code,nome:g.name});
+        items.push({ codigo: g.code, nome: g.name });
       });
       resolve(items);
     };
-    if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file,'UTF-8');
+    if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file, 'UTF-8');
     else reader.readAsArrayBuffer(file);
   });
 }
 
-/* --- Render --- */
+// Render datalist (autocompletar)
 function renderDatalist(){
-  prodList.innerHTML='';
-  bancoProdutos.forEach(p=>{
-    const opt=document.createElement('option');
-    opt.value=`${p.nome} (${p.codigo})`;
+  prodList.innerHTML = '';
+  bancoProdutos.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `${p.nome} (${p.codigo})`;
     prodList.appendChild(opt);
   });
 }
-function renderTable(conferido=false){
-  prodTableBody.innerHTML='';
+
+// Render tabela de produtos
+function renderTable(conferido = false){
+  prodTableBody.innerHTML = '';
   const codigos = new Set([...Object.keys(nfList), ...Object.keys(sumulaList)]);
-  bancoProdutos.forEach(p=>{
+  bancoProdutos.forEach(p => {
     if(!codigos.has(p.codigo)) return;
-    const nf = nfList[p.codigo]||0;
-    const sum = sumulaList[p.codigo]||0;
-    const diverg = Math.abs(nf-sum);
-
-    const motoristas = (motoristaList[p.codigo]||[])
-      .map(m=>`${escapeHtml(m.nome)} (${m.quantidade})`)
-      .join('<br>');
-
-    let statusText='', statusClass='';
-    if(conferido){
-      if(nf===sum){ statusText='Conforme'; statusClass='status-ok'; }
-      else { statusText='Não Conforme'; statusClass='status-error'; }
-    }
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
+    const nf = nfList[p.codigo] || 0;
+    const sum = sumulaList[p.codigo] || 0;
+    const diverg = Math.abs(nf - sum);
+    let statusText = '', statusClass = '';
+    if(conferido){ statusText = (nf === sum) ? 'Conforme' : 'Não Conforme'; statusClass = (nf === sum) ? 'status-ok' : 'status-error'; }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
       <td>${escapeHtml(p.codigo)}</td>
       <td>${escapeHtml(p.nome)}</td>
       <td class="center">${nf}</td>
       <td class="center">${sum}</td>
-      <td class="center">${motoristas}</td>
       <td class="center"><span class="${statusClass}">${statusText}</span></td>
-      <td class="center">${conferido?diverg:''}</td>
+      <td class="center">${nf + sum}</td>
     `;
     prodTableBody.appendChild(tr);
   });
 }
 
-/* --- Eventos --- */
-dbUpload.addEventListener('change', async ()=>{
+// Render histórico
+function renderHistory(){
+  historyTableBody.innerHTML = '';
+  history.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.data}</td>
+      <td>${escapeHtml(h.usuario)}</td>
+      <td>${h.totalNF}</td>
+      <td>${h.totalSum}</td>
+      <td>${h.totalDiv}</td>
+    `;
+    historyTableBody.appendChild(tr);
+  });
+}
+
+// Eventos
+
+// Salvar usuário via modal
+btnSalvarModal.addEventListener('click', ()=> {
+  const nome = inputNomeModal.value.trim() || 'Usuário';
+  const cargo = inputCargoModal.value.trim() || '';
+  if(inputAvatarModal.files[0]){
+    const reader = new FileReader();
+    reader.onload = e => {
+      currentUser = { nome, cargo, avatar: e.target.result };
+      userNameEl.textContent = nome;
+      userAvatarEl.src = e.target.result;
+      inputNomeModal.value = ''; inputCargoModal.value = ''; inputAvatarModal.value = '';
+      saveLocal();
+      userModal.style.display = 'none';
+      setProgress('Perfil salvo');
+      // habilita botão conferir caso já existam itens
+      conferirBtn.disabled = (Object.keys(nfList).length === 0) || (Object.keys(sumulaList).length === 0);
+    };
+    reader.readAsDataURL(inputAvatarModal.files[0]);
+  } else {
+    currentUser = { nome, cargo, avatar: currentUser.avatar };
+    userNameEl.textContent = nome;
+    saveLocal();
+    userModal.style.display = 'none';
+    setProgress('Perfil salvo');
+    conferirBtn.disabled = (Object.keys(nfList).length === 0) || (Object.keys(sumulaList).length === 0);
+  }
+});
+
+// Abrir modal para editar perfil
+editProfileBtn.addEventListener('click', ()=> {
+  inputNomeModal.value = currentUser.nome || '';
+  inputCargoModal.value = currentUser.cargo || '';
+  inputAvatarModal.value = '';
+  userModal.style.display = 'flex';
+});
+
+// Logout -> reabrir modal e limpar currentUser (mantém dados de conferência)
+logoutBtn.addEventListener('click', ()=> {
+  currentUser = { nome:'Usuário', cargo:'', avatar:'https://fernanda-li.github.io/CONFERENTE_ONLINE/abelha.png' };
+  userNameEl.textContent = currentUser.nome;
+  userAvatarEl.src = currentUser.avatar;
+  saveLocal();
+  // mostra modal para novo cadastro
+  inputNomeModal.value = '';
+  inputCargoModal.value = '';
+  inputAvatarModal.value = '';
+  userModal.style.display = 'flex';
+});
+
+// Upload banco
+dbUpload.addEventListener('change', async ()=> {
   if(!dbUpload.files[0]) return;
   setProgress('Lendo arquivo...');
   const items = await parseFile(dbUpload.files[0]);
   if(!items.length){ setProgress('Nenhum produto reconhecido'); return; }
-  bancoProdutos=items;
+  bancoProdutos = items;
   saveLocal();
   renderDatalist();
   setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
 });
 
-function adicionarProduto(lista){
+// adiciona produto nas listas (nf ou sumula)
+function addProdutoLista(lista){
   const val = Number(quantInput.value);
   const sel = produtoInput.value.trim();
-  const motorista = motoristaInput.value.trim();
-  if(!val||!sel){ alert('Selecione produto e quantidade'); return; }
-  const match=bancoProdutos.find(p=>sel.includes(p.nome));
-  if(!match){ alert('Produto não encontrado'); return; }
-
-  lista[match.codigo]=(lista[match.codigo]||0)+val;
-
-  if(motorista){
-    if(!motoristaList[match.codigo]) motoristaList[match.codigo]=[];
-    motoristaList[match.codigo].push({nome:motorista,quantidade:val});
-  }
-
-  produtoInput.value=''; quantInput.value=''; motoristaInput.value='';
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
+  if(!val || !sel){ alert('Selecione produto e quantidade'); return; }
+  const match = bancoProdutos.find(p => sel.includes(p.nome) || sel.includes(p.codigo));
+  if(!match){ alert('Produto não encontrado no banco'); return; }
+  lista[match.codigo] = (lista[match.codigo] || 0) + val;
+  produtoInput.value = ''; quantInput.value = '';
+  conferirBtn.disabled = (Object.keys(nfList).length === 0) || (Object.keys(sumulaList).length === 0);
   renderTable();
-  setProgress(`Produto "${match.nome}" adicionado`);
+  setProgress(`Produto "${match.nome}" adicionado (total: ${lista[match.codigo]})`);
   saveLocal();
 }
+okNF.addEventListener('click', ()=> addProdutoLista(nfList));
+okSumula.addEventListener('click', ()=> addProdutoLista(sumulaList));
 
-okNF.addEventListener('click', ()=>adicionarProduto(nfList));
-okSumula.addEventListener('click', ()=>adicionarProduto(sumulaList));
-
-conferirBtn.addEventListener('click', ()=>{
+// Conferir
+conferirBtn.addEventListener('click', ()=> {
   renderTable(true);
-  setProgress('Conferência concluída');
+  const totalNF = Object.values(nfList).reduce((a,b)=>a+b,0);
+  const totalSum = Object.values(sumulaList).reduce((a,b)=>a+b,0);
+  const totalDiv = Object.keys({...nfList,...sumulaList}).reduce((acc,c)=> acc + Math.abs((nfList[c]||0)-(sumulaList[c]||0)), 0);
+  const itensConferidos = Object.keys({...nfList,...sumulaList}).length;
+  history.unshift({
+    data: new Date().toLocaleString(),
+    usuario: currentUser.nome,
+    totalNF,
+    totalSum,
+    totalDiv
+  });
+  renderHistory();
+  saveLocal();
+  setProgress(`Conferência concluída — ${itensConferidos} itens conferidos`);
 });
 
-novaConfBtn.addEventListener('click', ()=>{
+// Nova conferência (reseta as listas)
+novaConfBtn.addEventListener('click', ()=> {
   if(!confirm('Deseja iniciar nova conferência?')) return;
-  nfList={}; sumulaList={}; motoristaList={};
-  conferirBtn.disabled=true;
+  nfList = {}; sumulaList = {};
+  conferirBtn.disabled = true;
   renderTable();
   setProgress('Nova conferência iniciada');
   saveLocal();
 });
 
-/* --- Inicialização --- */
-const saved = localStorage.getItem(STORAGE_KEY);
-if(saved){
-  const parsed=JSON.parse(saved);
-  bancoProdutos=parsed.banco||[];
-  nfList=parsed.nf||{};
-  sumulaList=parsed.sumula||{};
-  motoristaList=parsed.motorista||{};
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', ()=> {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Inicialização — carregar localStorage
+(function init(){
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(saved){
+    try {
+      const parsed = JSON.parse(saved);
+      bancoProdutos = parsed.banco || [];
+      nfList = parsed.nf || {};
+      sumulaList = parsed.sumula || {};
+      if(parsed.currentUser) currentUser = parsed.currentUser;
+      userNameEl.textContent = currentUser.nome || 'Usuário';
+      userAvatarEl.src = currentUser.avatar || userAvatarEl.src;
+    } catch(e){
+      console.warn('Erro ao ler storage', e);
+    }
+  } else {
+    // Se não tem usuário salvo, forçar modal
+    userModal.style.display = 'flex';
+  }
+
+  const savedHist = localStorage.getItem(HISTORY_KEY);
+  if(savedHist){
+    try { history = JSON.parse(savedHist); } catch(e){ history = []; }
+  }
+
   renderDatalist();
   renderTable();
-  conferirBtn.disabled=Object.keys(nfList).length===0||Object.keys(sumulaList).length===0;
+  renderHistory();
+  conferirBtn.disabled = (Object.keys(nfList).length === 0) || (Object.keys(sumulaList).length === 0);
   setProgress(`Banco carregado (${bancoProdutos.length} produtos)`);
-}
-
-/* --- Gráfico de motoristas --- */
-function renderGrafico(){
-  const ctx = document.getElementById('graficoMotoristas').getContext('2d');
-  const contagemMotoristas={};
-
-  Object.values(motoristaList).forEach(lista=>{
-    lista.forEach(m=>{
-      contagemMotoristas[m.nome]=(contagemMotoristas[m.nome]||0)+m.quantidade;
-    });
-  });
-
-  const labels = Object.keys(contagemMotoristas);
-  const data = Object.values(contagemMotoristas);
-  if(window.chartMotoristas) window.chartMotoristas.destroy();
-  window.chartMotoristas = new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels,
-      datasets:[{
-        label:'Retornos por motorista',
-        data,
-        backgroundColor:'rgba(228,28,35,0.6)',
-        borderColor:'rgba(228,28,35,1)',
-        borderWidth:1
-      }]
-    },
-    options:{ scales:{ y:{beginAtZero:true,precision:0} } }
-  });
-}
+})();
 </script>
 
 </body>
 </html>
+
